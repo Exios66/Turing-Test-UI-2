@@ -10,7 +10,6 @@ export function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
 
-  // Handle hydration mismatch
   useEffect(() => setMounted(true), []);
 
   const toggleTheme = () => {
@@ -18,16 +17,15 @@ export function ThemeToggle() {
 
     setIsAnimating(true);
     const isDark = currentTheme.appearance === "dark";
+    const currentStyle = currentTheme.name.toLowerCase().includes("minimal") ? "Minimal" : "iMessage";
     const newTheme = defaultThemes.find(t => 
-      t.appearance === (isDark ? "light" : "dark")
+      t.name === `${currentStyle} ${isDark ? "Light" : "Dark"}`
     );
     
     if (newTheme) {
       setTheme(newTheme);
-      setTimeout(() => setIsAnimating(false), 200);
-    } else {
-      setIsAnimating(false);
     }
+    setTimeout(() => setIsAnimating(false), 200);
   };
 
   if (!mounted) return null;
