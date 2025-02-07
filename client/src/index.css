@@ -15,5 +15,15 @@
     --user-bubble-color: #34C759;
     --other-bubble-color: #F2F2F7;
     --chat-font-family: system-ui, sans-serif;
+    --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+    --viewport-height: 100vh;
+    --content-width: min(100%, 1200px);
+    --header-height: 60px;
+  }
+
+  @supports (-webkit-touch-callout: none) {
+    :root {
+      --viewport-height: -webkit-fill-available;
+    }
   }
 }

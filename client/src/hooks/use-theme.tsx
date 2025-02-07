@@ -12,6 +12,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [currentTheme, setCurrentTheme] = useState<Theme>(defaultThemes[0]);
 
   useEffect(() => {
+    const { prefersColorScheme } = getScreenConfig()
+    
+    // Set initial theme based on user preference if not explicitly set
+    if (!localStorage.getItem('theme')) {
+      setCurrentTheme({
+        ...currentTheme,
+        appearance: prefersColorScheme
+      })
+    }
+    
     // Update theme.json when theme changes
     const themeJson = {
       variant: currentTheme.variant,
