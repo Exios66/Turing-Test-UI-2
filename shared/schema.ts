@@ -19,10 +19,21 @@ export const insertMessageSchema = createInsertSchema(messages).pick({
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 
-export const messageFileSchema = z.array(
-  z.object({
+// Updated schema for the new file format
+export const messageFileSchema = z.object({
+  version: z.string(),
+  messages: z.record(z.string(), z.object({
+    characterId: z.string(),
     content: z.string(),
-    sender: z.string(),
-    timestamp: z.string().optional(),
-  })
-);
+    id: z.string(),
+    updatedAt: z.string(),
+    metadata: z.object({
+      generateDuration: z.number(),
+      latencyDuration: z.number(),
+      duration: z.number(),
+      tokensCount: z.number(),
+      tokensPerSecond: z.number()
+    }).optional(),
+    isRetrying: z.boolean().optional()
+  }))
+});

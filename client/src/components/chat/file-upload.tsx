@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
-import { messageFileSchema } from "@shared/schema";
+import { messageFileSchema, type InsertMessage } from "@shared/schema";
 
 export function FileUpload() {
   const { toast } = useToast();
@@ -25,7 +25,16 @@ export function FileUpload() {
         throw new Error("Invalid message format");
       }
 
-      await apiRequest("POST", "/api/messages/bulk", data);
+      // Transform the messages into our format
+      const messages: InsertMessage[] = Object.values(result.data.messages)
+        .filter(msg => msg.characterId !== "USER") // Filter out user messages
+        .map(msg => ({
+          content: msg.content,
+          sender: msg.characterId,
+          avatar: "https://images.unsplash.com/photo-1630910561339-4e22c7150093" // Default avatar
+        }));
+
+      await apiRequest("POST", "/api/messages/bulk", messages);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
