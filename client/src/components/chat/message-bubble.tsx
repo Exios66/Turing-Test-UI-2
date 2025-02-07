@@ -3,6 +3,8 @@ import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
+import { useState } from "react";
+import { UserProfile } from "./user-profile";
 
 interface MessageBubbleProps {
   message: Message;
@@ -17,6 +19,7 @@ export function MessageBubble({
   isFirstInGroup,
   isLastInGroup 
 }: MessageBubbleProps) {
+  const [showProfile, setShowProfile] = useState(false);
   const { currentTheme } = useTheme();
   const bubbleStyle = {
     modern: "rounded-2xl px-4 py-2",
@@ -36,9 +39,21 @@ export function MessageBubble({
       )}
     >
       {isFirstInGroup && (
-        <Avatar className="w-8 h-8">
-          <AvatarImage src={message.avatar} alt={message.sender} />
-        </Avatar>
+        <>
+          <Avatar className="w-8 h-8 cursor-pointer" onClick={() => setShowProfile(true)}>
+            <AvatarImage src={message.avatar} alt={message.sender} />
+          </Avatar>
+          <UserProfile
+            profile={{
+              id: 0,
+              name: message.sender,
+              avatar: message.avatar,
+              createdAt: new Date().toISOString()
+            }}
+            isOpen={showProfile}
+            onClose={() => setShowProfile(false)}
+          />
+        </>
       )}
       {!isFirstInGroup && <div className="w-8" />}
       <div
