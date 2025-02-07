@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import { defaultThemes, type Theme } from "@shared/themes";
+import { getScreenConfig } from "@/lib/utils";
 
 interface ThemeContextType {
   currentTheme: Theme;
