@@ -15,12 +15,21 @@ function Router() {
   );
 }
 
+// Placeholder ErrorBoundary component - Needs proper implementation
+function ErrorBoundary({ children }) {
+  return (
+      <>{children}</>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <Router />
-        <Toaster />
+        <ErrorBoundary>
+          <Router />
+          <Toaster />
+        </ErrorBoundary>
       </ThemeProvider>
     </QueryClientProvider>
   );
