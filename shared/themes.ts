@@ -1,3 +1,4 @@
+
 import { z } from "zod";
 
 export const themeSchema = z.object({
@@ -11,6 +12,13 @@ export const themeSchema = z.object({
     userBubbleColor: z.string(),
     otherBubbleColor: z.string(),
     fontStyle: z.enum(["default", "rounded", "monospace"]),
+    background: z.string(),
+    textColor: z.string(),
+    inputBackground: z.string(),
+    inputBorder: z.string(),
+    sidebarBackground: z.string(),
+    sidebarText: z.string(),
+    accentColor: z.string(),
   }),
 });
 
@@ -18,7 +26,7 @@ export type Theme = z.infer<typeof themeSchema>;
 
 export const defaultThemes: Theme[] = [
   {
-    name: "iMessage",
+    name: "iMessage Light",
     variant: "professional",
     primary: "#007AFF",
     appearance: "light",
@@ -28,23 +36,37 @@ export const defaultThemes: Theme[] = [
       userBubbleColor: "#34C759",
       otherBubbleColor: "#F2F2F7",
       fontStyle: "default",
+      background: "#ffffff",
+      textColor: "#1a1a1a",
+      inputBackground: "#f5f5f5",
+      inputBorder: "#e5e5e5",
+      sidebarBackground: "#f8f8f8",
+      sidebarText: "#4a4a4a",
+      accentColor: "#007AFF",
     },
   },
   {
-    name: "Dark Mode",
+    name: "iMessage Dark",
     variant: "professional",
     primary: "#0A84FF",
     appearance: "dark",
-    radius: 8,
+    radius: 12,
     chat: {
       bubbleStyle: "modern",
       userBubbleColor: "#4CAF50",
       otherBubbleColor: "#424242",
       fontStyle: "default",
+      background: "#1a1a1a",
+      textColor: "#ffffff",
+      inputBackground: "#2d2d2d",
+      inputBorder: "#404040",
+      sidebarBackground: "#242424",
+      sidebarText: "#e0e0e0",
+      accentColor: "#0A84FF",
     },
   },
   {
-    name: "Minimal",
+    name: "Minimal Light",
     variant: "tint",
     primary: "#6B7280",
     appearance: "light",
@@ -54,6 +76,33 @@ export const defaultThemes: Theme[] = [
       userBubbleColor: "#E5E7EB",
       otherBubbleColor: "#F3F4F6",
       fontStyle: "monospace",
+      background: "#ffffff",
+      textColor: "#374151",
+      inputBackground: "#f9fafb",
+      inputBorder: "#e5e7eb",
+      sidebarBackground: "#f3f4f6",
+      sidebarText: "#4b5563",
+      accentColor: "#6B7280",
+    },
+  },
+  {
+    name: "Minimal Dark",
+    variant: "tint",
+    primary: "#6B7280",
+    appearance: "dark",
+    radius: 4,
+    chat: {
+      bubbleStyle: "minimal",
+      userBubbleColor: "#374151",
+      otherBubbleColor: "#4B5563",
+      fontStyle: "monospace",
+      background: "#1F2937",
+      textColor: "#F9FAFB",
+      inputBackground: "#374151",
+      inputBorder: "#4B5563",
+      sidebarBackground: "#111827",
+      sidebarText: "#D1D5DB",
+      accentColor: "#6B7280",
     },
   },
 ];

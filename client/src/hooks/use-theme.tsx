@@ -73,6 +73,34 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           ? "ui-rounded, system-ui, sans-serif"
           : "system-ui, sans-serif"
       );
+      document.documentElement.style.setProperty(
+        "--chat-background",
+        currentTheme.chat.background
+      );
+      document.documentElement.style.setProperty(
+        "--chat-text-color",
+        currentTheme.chat.textColor
+      );
+      document.documentElement.style.setProperty(
+        "--chat-input-background",
+        currentTheme.chat.inputBackground
+      );
+      document.documentElement.style.setProperty(
+        "--chat-input-border",
+        currentTheme.chat.inputBorder
+      );
+      document.documentElement.style.setProperty(
+        "--chat-sidebar-background",
+        currentTheme.chat.sidebarBackground
+      );
+      document.documentElement.style.setProperty(
+        "--chat-sidebar-text",
+        currentTheme.chat.sidebarText
+      );
+      document.documentElement.style.setProperty(
+        "--chat-accent-color",
+        currentTheme.chat.accentColor
+      );
 
       console.log('Theme styles applied successfully');
     } catch (error) {
