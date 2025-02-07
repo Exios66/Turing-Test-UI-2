@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "./theme-toggle";
 import { Input } from "@/components/ui/input";
 import { Plus, Trash2 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -63,7 +64,9 @@ export function ConversationList({
     <div className="w-64 border-r p-4 flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Conversations</h2>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button variant="ghost" size="icon">
               <Plus className="h-4 w-4" />
@@ -88,6 +91,7 @@ export function ConversationList({
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
       <div className="flex flex-col gap-2">
         {conversations.map((conversation) => (
