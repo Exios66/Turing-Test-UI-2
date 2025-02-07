@@ -1,31 +1,39 @@
-
 import { useState } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { updateProfile } from '@/lib/api';
+import { z } from 'zod';
+
+const profileSchema = z.object({
+  name: z.string().min(1, "Username is required"),
+  avatar: z.string().url("Invalid avatar URL").optional(),
+});
 
 interface UserProfileProps {
   id: number;
   username: string;
-  avatar: string;
+  avatar?: string;
 }
 
 export function UserProfile({ id, username, avatar }: UserProfileProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [newUsername, setNewUsername] = useState(username);
-  const [newAvatar, setNewAvatar] = useState(avatar);
-  
+  const [newAvatar, setNewAvatar] = useState(avatar || '');
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+
     try {
-      await updateProfile(id, { 
+      const validatedData = profileSchema.parse({
         name: newUsername,
-        avatar: newAvatar 
+        avatar: newAvatar || undefined,
       });
+
+      setIsLoading(true);
+      await updateProfile(id, validatedData);
       setIsEditing(false);
       toast({
         title: "Profile Updated",
@@ -33,11 +41,19 @@ export function UserProfile({ id, username, avatar }: UserProfileProps) {
       });
     } catch (error) {
       console.error('Profile update failed:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update profile",
-        variant: "destructive",
-      });
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Validation Error",
+          description: error.errors[0].message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to update profile",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -49,7 +65,7 @@ export function UserProfile({ id, username, avatar }: UserProfileProps) {
         <AvatarImage src={avatar} alt={username} />
         <AvatarFallback>{username[0]?.toUpperCase()}</AvatarFallback>
       </Avatar>
-      
+
       {isEditing ? (
         <form onSubmit={handleSubmit} className="flex gap-2">
           <Input
@@ -73,7 +89,11 @@ export function UserProfile({ id, username, avatar }: UserProfileProps) {
             type="button" 
             variant="outline" 
             size="sm" 
-            onClick={() => setIsEditing(false)}
+            onClick={() => {
+              setNewUsername(username);
+              setNewAvatar(avatar || '');
+              setIsEditing(false);
+            }}
             disabled={isLoading}
           >
             Cancel

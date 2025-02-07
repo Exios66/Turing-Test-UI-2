@@ -2,8 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer } from "http";
 import { storage } from "./storage";
 import { insertMessageSchema, insertProfileSchema, insertConversationSchema } from "@shared/schema";
-import { log } from "./logger"; // Assuming a logger function exists
-
+import { log } from "./vite"; // Import logger from vite.ts
 
 export function registerRoutes(app: Express) {
   // Message routes
@@ -22,6 +21,7 @@ export function registerRoutes(app: Express) {
       ...result.data,
       conversationId: req.body.conversationId,
       profileId: req.body.profileId,
+      timestamp: new Date(), // Add timestamp for message creation
     });
     res.json(message);
   });
@@ -37,6 +37,7 @@ export function registerRoutes(app: Express) {
       avatar: msg.avatar,
       conversationId: msg.conversationId,
       profileId: msg.profileId,
+      timestamp: new Date(), // Add timestamp for each message
     }));
 
     const savedMessages = await storage.createMessages(messages);
@@ -60,7 +61,10 @@ export function registerRoutes(app: Express) {
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
-    const profile = await storage.createProfile(result.data);
+    const profile = await storage.createProfile({
+      ...result.data,
+      createdAt: new Date(), // Add createdAt for profile creation
+    });
     res.json(profile);
   });
 
@@ -70,7 +74,10 @@ export function registerRoutes(app: Express) {
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
-    const profile = await storage.updateProfile(id, result.data);
+    const profile = await storage.updateProfile(id, {
+      ...result.data,
+      // Don't update createdAt on patch
+    });
     res.json(profile);
   });
 
@@ -85,7 +92,10 @@ export function registerRoutes(app: Express) {
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
-    const conversation = await storage.createConversation(result.data);
+    const conversation = await storage.createConversation({
+      ...result.data,
+      createdAt: new Date(), // Add createdAt for conversation creation
+    });
     res.json(conversation);
   });
 

@@ -17,53 +17,25 @@ export default function Chat() {
   const [currentConversation, setCurrentConversation] = useState<number>();
 
   const handleConversationChange = useCallback((id: number) => {
-    console.log('Switching to conversation:', id);
     setCurrentConversation(id);
   }, []);
 
   const { data: messages = [], isLoading, error } = useQuery<Message[]>({
     queryKey: ["/api/messages", currentConversation],
-    queryFn: async ({ queryKey }) => {
-      const conversationId = queryKey[1];
-      console.log('Fetching messages for conversation:', conversationId);
-      try {
-        const response = await fetch(
-          conversationId
-            ? `/api/messages/${conversationId}`
-            : "/api/messages"
-        );
-        if (!response.ok) {
-          throw new Error(`Failed to fetch messages: ${response.statusText}`);
-        }
-        const data = await response.json();
-        console.log('Fetched messages:', data.length);
-        return data;
-      } catch (err) {
-        console.error('Error fetching messages:', err);
-        toast({
-          title: "Error",
-          description: "Failed to load messages. Please try again.",
-          variant: "destructive",
-        });
-        throw err;
-      }
-    },
+    enabled: true, // Always enabled to load initial messages
     staleTime: 1000, // Prevent rapid refetches
-    refetchOnWindowFocus: false, // Disable automatic refetch on window focus
+    refetchOnWindowFocus: false,
   });
 
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-red-500">Failed to load messages</div>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse">Loading messages...</div>
+        <Card className="p-6">
+          <div className="text-red-500">Failed to load messages</div>
+          <p className="text-sm text-muted-foreground mt-2">
+            Please try refreshing the page
+          </p>
+        </Card>
       </div>
     );
   }
@@ -83,7 +55,11 @@ export default function Chat() {
               <FileUpload />
             </div>
           </div>
-          <ChatContainer messages={messages} currentUser={CURRENT_USER} />
+          <ChatContainer 
+            messages={messages} 
+            currentUser={CURRENT_USER} 
+            isLoading={isLoading}
+          />
           <MessageInput
             sender={CURRENT_USER}
             avatar={CURRENT_USER_AVATAR}

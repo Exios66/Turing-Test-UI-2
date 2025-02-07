@@ -3,43 +3,49 @@ import { MessageBubble } from "./message-bubble";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useEffect, useRef, useState } from "react";
 import { Input } from "../ui/input";
+import { UserProfile } from "./user-profile";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ChatContainerProps {
   messages: Message[];
   currentUser?: string;
+  isLoading?: boolean;
 }
 
-export function ChatContainer({ messages, currentUser }: ChatContainerProps) {
+export function ChatContainer({ messages, currentUser, isLoading }: ChatContainerProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showSearch, setShowSearch] = useState(false); // Added state for search visibility
+  const [showSearch, setShowSearch] = useState(false);
 
   const filteredMessages = messages.filter(message => 
     message.content.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const toggleSearch = () => setShowSearch(!showSearch); // Added toggle function
-
-  useEffect(() => {
-    console.log('Messages updated:', messages.length);
-    if (isAutoScrollEnabled && bottomRef.current) {
+  const scrollToBottom = () => {
+    if (bottomRef.current && isAutoScrollEnabled) {
       try {
         bottomRef.current.scrollIntoView({ behavior: "smooth" });
       } catch (error) {
         console.error('Error scrolling to bottom:', error);
+        // Fallback to instant scroll if smooth scroll fails
+        bottomRef.current.scrollIntoView();
       }
+    }
+  };
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      scrollToBottom();
     }
   }, [messages, isAutoScrollEnabled]);
 
-  // Handle scroll events to disable auto-scroll when user scrolls up
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const { scrollHeight, scrollTop, clientHeight } = event.currentTarget;
     const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
     setIsAutoScrollEnabled(isNearBottom);
   };
 
-  // Group messages by sender for better visualization
   const groupedMessages = filteredMessages.reduce((groups: Message[][], message) => {
     const lastGroup = groups[groups.length - 1];
     if (lastGroup && lastGroup[0].sender === message.sender) {
@@ -50,42 +56,42 @@ export function ChatContainer({ messages, currentUser }: ChatContainerProps) {
     return groups;
   }, []);
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="p-4 space-y-4">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-20 w-3/4" />
+          <Skeleton className="h-20 w-2/3" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="p-2 border-b">
-        <UserProfile 
-          username={currentUser || ""}
-          avatar=""
-          onUpdate={async (data) => {
-            try {
-              // TODO: Implement profile update API call
-              console.log("Profile update:", data);
-            } catch (error) {
-              console.error("Failed to update profile:", error);
-            }
-          }}
-        />
-        <UserProfile 
-          username={currentUser || ""}
-          avatar=""
-          onUpdate={async (data) => {
-            try {
-              // TODO: Implement profile update API call
-              console.log("Profile update:", data);
-            } catch (error) {
-              console.error("Failed to update profile:", error);
-            }
-          }}
-        />
+        {currentUser && (
+          <UserProfile
+            id={1} // TODO: Get actual user ID
+            username={currentUser}
+            avatar=""
+          />
+        )}
         <button 
-          onClick={toggleSearch}
+          onClick={() => setShowSearch(!showSearch)}
           className="p-2 hover:bg-muted rounded-md text-sm"
         >
           {showSearch ? "Hide Search" : "Show Search"}
         </button>
         {showSearch && (
           <div className="mt-2">
-            <Input placeholder="Search messages..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="max-w-md" /> {/*Replaced SearchInput with existing Input component*/}
+            <Input 
+              placeholder="Search messages..." 
+              value={searchQuery} 
+              onChange={(e) => setSearchQuery(e.target.value)} 
+              className="max-w-md" 
+            />
           </div>
         )}
       </div>
