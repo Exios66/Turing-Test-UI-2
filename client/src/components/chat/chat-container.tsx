@@ -13,10 +13,13 @@ export function ChatContainer({ messages, currentUser }: ChatContainerProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showSearch, setShowSearch] = useState(false); // Added state for search visibility
 
   const filteredMessages = messages.filter(message => 
     message.content.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const toggleSearch = () => setShowSearch(!showSearch); // Added toggle function
 
   useEffect(() => {
     console.log('Messages updated:', messages.length);
@@ -48,31 +51,38 @@ export function ChatContainer({ messages, currentUser }: ChatContainerProps) {
   }, []);
 
   return (
-    <ScrollArea className="flex-1 p-4" onScroll={handleScroll}>
-      <div className="p-4 border-b">
-        <Input
-          placeholder="Search messages..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="max-w-md"
-        />
+    <div className="flex flex-col h-full">
+      <div className="p-2 border-b">
+        <button 
+          onClick={toggleSearch}
+          className="p-2 hover:bg-muted rounded-md text-sm"
+        >
+          {showSearch ? "Hide Search" : "Show Search"}
+        </button>
+        {showSearch && (
+          <div className="mt-2">
+            <Input placeholder="Search messages..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="max-w-md" /> {/*Replaced SearchInput with existing Input component*/}
+          </div>
+        )}
       </div>
-      <div className="flex-1 overflow-y-auto p-4">
-      {groupedMessages.map((group, groupIndex) => (
-        <div key={groupIndex} className="mb-6">
-          {group.map((message, messageIndex) => (
-            <MessageBubble
-              key={message.id}
-              message={message}
-              isCurrentUser={message.sender === currentUser}
-              isFirstInGroup={messageIndex === 0}
-              isLastInGroup={messageIndex === group.length - 1}
-            />
+      <ScrollArea className="flex-1 p-4" onScroll={handleScroll}>
+        <div className="flex-1 overflow-y-auto p-4">
+          {groupedMessages.map((group, groupIndex) => (
+            <div key={groupIndex} className="mb-6">
+              {group.map((message, messageIndex) => (
+                <MessageBubble
+                  key={message.id}
+                  message={message}
+                  isCurrentUser={message.sender === currentUser}
+                  isFirstInGroup={messageIndex === 0}
+                  isLastInGroup={messageIndex === group.length - 1}
+                />
+              ))}
+            </div>
           ))}
         </div>
-      ))}
-      </div>
-      <div ref={bottomRef} />
-    </ScrollArea>
+        <div ref={bottomRef} />
+      </ScrollArea>
+    </div>
   );
 }
