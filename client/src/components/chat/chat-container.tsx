@@ -6,12 +6,13 @@ import { Input } from "../ui/input";
 import { UserProfile } from "./user-profile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface ChatContainerProps {
   messages: Message[];
   currentUser?: string;
   isLoading?: boolean;
-  currentConversation?: string; // Added currentConversation prop
+  currentConversation?: string;
 }
 
 export function ChatContainer({ messages, currentUser, isLoading, currentConversation }: ChatContainerProps) {
@@ -21,18 +22,33 @@ export function ChatContainer({ messages, currentUser, isLoading, currentConvers
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     // Setup WebSocket connection
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws`;
+    let heartbeatInterval: NodeJS.Timeout;
 
     function connect() {
       const socket = new WebSocket(wsUrl);
 
       socket.onopen = () => {
         console.log('WebSocket connected');
+        setIsConnected(true);
         reconnectAttemptRef.current = 0;
+        toast({
+          title: "Connected to chat server",
+          duration: 2000
+        });
+
+        // Start heartbeat
+        heartbeatInterval = setInterval(() => {
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: 'ping' }));
+          }
+        }, 25000); // Every 25 seconds
       };
 
       socket.onmessage = (event) => {
@@ -48,13 +64,17 @@ export function ChatContainer({ messages, currentUser, isLoading, currentConvers
           // Handle error messages
           if (data.error) {
             console.error('Server reported error:', data.error);
+            toast({
+              title: "Error",
+              description: data.error,
+              variant: "destructive"
+            });
             return;
           }
 
           // Handle chat messages
           const message = data as Message;
           queryClient.setQueryData<Message[]>(['/api/messages', currentConversation], (oldMessages = []) => {
-            // Avoid duplicate messages
             if (oldMessages.some(m => m.id === message.id)) {
               return oldMessages;
             }
@@ -67,10 +87,18 @@ export function ChatContainer({ messages, currentUser, isLoading, currentConvers
 
       socket.onerror = (error) => {
         console.error('WebSocket error:', error);
+        setIsConnected(false);
+        toast({
+          title: "Connection error",
+          description: "Failed to connect to chat server",
+          variant: "destructive"
+        });
       };
 
       socket.onclose = (event) => {
         console.log(`WebSocket disconnected with code ${event.code}:`, event.reason);
+        setIsConnected(false);
+        clearInterval(heartbeatInterval);
 
         // Implement exponential backoff for reconnection
         const backoffDelay = Math.min(1000 * Math.pow(2, reconnectAttemptRef.current), 30000);
@@ -81,8 +109,21 @@ export function ChatContainer({ messages, currentUser, isLoading, currentConvers
         if (document.visibilityState === 'visible' && reconnectAttemptRef.current <= maxReconnectAttempts) {
           console.log(`Attempting reconnection in ${backoffDelay}ms (attempt ${reconnectAttemptRef.current})`);
           setTimeout(connect, backoffDelay);
+
+          if (reconnectAttemptRef.current > 1) {
+            toast({
+              title: "Reconnecting...",
+              description: `Attempt ${reconnectAttemptRef.current} of ${maxReconnectAttempts}`,
+              duration: 3000
+            });
+          }
         } else {
-          console.log('Max reconnection attempts reached or page not visible');
+          toast({
+            title: "Connection lost",
+            description: "Please refresh the page to reconnect",
+            variant: "destructive",
+            duration: 5000
+          });
         }
       };
 
@@ -93,11 +134,12 @@ export function ChatContainer({ messages, currentUser, isLoading, currentConvers
 
     // Cleanup on unmount
     return () => {
+      clearInterval(heartbeatInterval);
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.close(1000, 'Component unmounting');
       }
     };
-  }, [currentConversation]); // Add currentConversation as dependency to reconnect when conversation changes
+  }, [currentConversation, toast]);
 
   const filteredMessages = messages.filter(message =>
     message.content.toLowerCase().includes(searchQuery.toLowerCase())

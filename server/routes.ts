@@ -6,120 +6,128 @@ import { insertMessageSchema, insertProfileSchema, insertConversationSchema } fr
 import { log } from "./vite";
 import { checkDatabaseConnection } from "./db";
 
+const MAX_CLIENTS = 1000; // Maximum number of concurrent WebSocket connections
+const HEARTBEAT_INTERVAL = 30000; // 30 seconds
+const CLIENT_TIMEOUT = 120000; // 2 minutes
+
+interface ExtendedWebSocket extends WebSocket {
+  isAlive: boolean;
+  userId?: string;
+  lastMessageTime: number;
+}
+
 export function registerRoutes(app: Express) {
   const server = createServer(app);
   const wss = new WebSocketServer({ server, path: '/ws' });
 
-  // Track connected clients for debugging
-  const clients = new Set<WebSocket>();
+  // Track connected clients with extended information
+  const clients = new Map<ExtendedWebSocket, { connectTime: number }>();
 
-  wss.on('connection', (ws, req) => {
+  function heartbeat(ws: ExtendedWebSocket) {
+    ws.isAlive = true;
+    ws.lastMessageTime = Date.now();
+  }
+
+  // Periodic cleanup and health check
+  const interval = setInterval(() => {
+    const now = Date.now();
+    wss.clients.forEach((client) => {
+      const ws = client as ExtendedWebSocket;
+      if (!ws.isAlive) {
+        clients.delete(ws);
+        return ws.terminate();
+      }
+
+      // Check for client timeout
+      if (now - ws.lastMessageTime > CLIENT_TIMEOUT) {
+        log(`Client timed out, terminating connection`);
+        clients.delete(ws);
+        return ws.terminate();
+      }
+
+      ws.isAlive = false;
+      ws.ping();
+    });
+
+    // Log active connections
+    log(`Active WebSocket connections: ${clients.size}`);
+  }, HEARTBEAT_INTERVAL);
+
+  wss.on('connection', (ws: WebSocket, req) => {
+    // Extend the WebSocket instance
+    const extWs = ws as ExtendedWebSocket;
+    extWs.isAlive = true;
+    extWs.lastMessageTime = Date.now();
+
+    // Check maximum connections
+    if (clients.size >= MAX_CLIENTS) {
+      log(`Connection rejected: Maximum clients (${MAX_CLIENTS}) reached`);
+      extWs.close(1013, 'Maximum connections reached');
+      return;
+    }
+
     const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     log(`WebSocket client connected from ${clientIp}`);
-    clients.add(ws);
 
-    ws.on('message', (data) => {
+    clients.set(extWs, { connectTime: Date.now() });
+
+    extWs.on('pong', () => heartbeat(extWs));
+
+    extWs.on('message', (data) => {
       try {
         const message = JSON.parse(data.toString());
+        extWs.lastMessageTime = Date.now();
+
+        // Validate message structure
+        if (!message || typeof message !== 'object') {
+          throw new Error('Invalid message format');
+        }
+
         log(`Received message from ${clientIp}: ${JSON.stringify(message).slice(0, 100)}...`);
 
         // Broadcast message to all connected clients
         let broadcastCount = 0;
         wss.clients.forEach((client) => {
-          if (client !== ws && client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify(message));
-            broadcastCount++;
+          if (client !== extWs && client.readyState === WebSocket.OPEN) {
+            try {
+              client.send(JSON.stringify(message));
+              broadcastCount++;
+            } catch (error) {
+              log(`Failed to send message to client: ${error instanceof Error ? error.message : String(error)}`);
+            }
           }
         });
         log(`Broadcasted message to ${broadcastCount} clients`);
       } catch (error) {
         log(`WebSocket message error: ${error instanceof Error ? error.message : String(error)}`);
-        // Send error back to client
-        ws.send(JSON.stringify({ error: 'Failed to process message' }));
+        extWs.send(JSON.stringify({ 
+          error: 'Failed to process message',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        }));
       }
     });
 
-    ws.on('error', (error) => {
+    extWs.on('error', (error) => {
       log(`WebSocket error for client ${clientIp}: ${error.message}`);
+      clients.delete(extWs);
     });
 
-    ws.on('close', () => {
+    extWs.on('close', () => {
       log(`WebSocket client disconnected: ${clientIp}`);
-      clients.delete(ws);
+      clients.delete(extWs);
     });
 
     // Send initial connection success message
-    ws.send(JSON.stringify({ type: 'connection', status: 'connected' }));
+    extWs.send(JSON.stringify({ 
+      type: 'connection', 
+      status: 'connected',
+      timestamp: new Date().toISOString()
+    }));
   });
 
-  // Periodic cleanup of stale connections
-  setInterval(() => {
-    wss.clients.forEach((ws) => {
-      if (ws.readyState === WebSocket.CLOSED) {
-        clients.delete(ws);
-      }
-    });
-    log(`Active WebSocket connections: ${clients.size}`);
-  }, 30000);
-
-  // Health check endpoint
-  app.get("/health", async (_req, res) => {
-    try {
-      const dbStatus = await checkDatabaseConnection();
-      res.json({ 
-        status: "ok",
-        timestamp: new Date().toISOString(),
-        database: dbStatus ? "connected" : "error",
-        uptime: process.uptime()
-      });
-    } catch (error) {
-      res.status(503).json({ 
-        status: "error",
-        message: error instanceof Error ? error.message : "Service unavailable"
-      });
-    }
-  });
-
-  // Cache control middleware for static assets
-  app.use("/assets", (req, res, next) => {
-    // Cache static assets for 1 day
-    res.setHeader("Cache-Control", "public, max-age=86400");
-    next();
-  });
-
-  // Rate limiting middleware with type safety
-  const rateLimit = new Map<string, { count: number, lastReset: number }>();
-  app.use((req, res, next) => {
-    const clientIp = req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown';
-    const now = Date.now();
-    const windowMs = 60000; // 1 minute window
-    const maxRequests = 100; // Max requests per window
-
-    if (!clientIp) {
-      log('Warning: Unable to determine client IP address');
-      return next();
-    }
-
-    const client = rateLimit.get(clientIp) || { count: 0, lastReset: now };
-
-    if (now - client.lastReset > windowMs) {
-      client.count = 0;
-      client.lastReset = now;
-    }
-
-    client.count++;
-    rateLimit.set(clientIp, client);
-
-    if (client.count > maxRequests) {
-      return res.status(429).json({ 
-        error: {
-          message: "Too many requests",
-          retryAfter: Math.ceil((client.lastReset + windowMs - now) / 1000)
-        }
-      });
-    }
-
-    next();
+  // Cleanup interval when server closes
+  wss.on('close', () => {
+    clearInterval(interval);
   });
 
   // Request validation middleware
@@ -276,6 +284,66 @@ export function registerRoutes(app: Express) {
     } catch (error) {
       next(error);
     }
+  });
+
+  // Health check endpoint
+  app.get("/health", async (_req, res) => {
+    try {
+      const dbStatus = await checkDatabaseConnection();
+      res.json({ 
+        status: "ok",
+        timestamp: new Date().toISOString(),
+        database: dbStatus ? "connected" : "error",
+        uptime: process.uptime()
+      });
+    } catch (error) {
+      res.status(503).json({ 
+        status: "error",
+        message: error instanceof Error ? error.message : "Service unavailable"
+      });
+    }
+  });
+
+  // Cache control middleware for static assets
+  app.use("/assets", (req, res, next) => {
+    // Cache static assets for 1 day
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    next();
+  });
+
+  // Rate limiting middleware with type safety
+  const rateLimit = new Map<string, { count: number, lastReset: number }>();
+  app.use((req, res, next) => {
+    const clientIp = req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown';
+    const now = Date.now();
+    const windowMs = 60000; // 1 minute window
+    const maxRequests = 100; // Max requests per window
+
+    if (!clientIp) {
+      log('Warning: Unable to determine client IP address');
+      return next();
+    }
+
+    const client = rateLimit.get(clientIp) || { count: 0, lastReset: now };
+
+    if (now - client.lastReset > windowMs) {
+      client.count = 0;
+      client.lastReset = now;
+    }
+
+    client.count++;
+    rateLimit.set(clientIp, client);
+
+    if (client.count > maxRequests) {
+      return res.status(429).json({ 
+        error: {
+          message: "Too many requests",
+          retryAfter: Math.ceil((client.lastReset + windowMs - now) / 1000)
+        }
+      });
+    }
+
+    next();
   });
 
   // Error handling middleware

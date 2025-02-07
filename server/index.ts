@@ -120,7 +120,7 @@ process.on('unhandledRejection', (reason, promise) => {
         log(`Stack trace for ${requestId}: ${err.stack}`);
       }
 
-      res.status(status).json({ 
+      res.status(status).json({
         error: {
           message,
           status,
@@ -139,10 +139,10 @@ process.on('unhandledRejection', (reason, promise) => {
     }
 
     const PORT = Number(process.env.PORT) || 5000;
-    server.listen(PORT, () => {
-      log(`Server started successfully, listening on port ${PORT}`);
-      // Signal that the server is ready by writing to stdout
-      console.log(`Server is ready! Listening on port ${PORT}`);
+    server.listen(PORT, '0.0.0.0', () => {
+      log(`Server started successfully on 0.0.0.0:${PORT}`);
+      // Signal that the server is ready - Updated format for better detection
+      console.log(`Ready | Server listening at http://0.0.0.0:${PORT}`);
     });
   } catch (error) {
     log(`Failed to start server: ${error instanceof Error ? error.message : String(error)}`);
