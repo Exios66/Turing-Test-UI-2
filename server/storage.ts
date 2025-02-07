@@ -1,4 +1,5 @@
 import { messages, type Message, type InsertMessage } from "@shared/schema";
+import { db } from "./db";
 
 export interface IStorage {
   getMessages(): Promise<Message[]>;
@@ -6,38 +7,26 @@ export interface IStorage {
   createMessages(messages: InsertMessage[]): Promise<Message[]>;
 }
 
-export class MemStorage implements IStorage {
-  private messages: Message[];
-  private currentId: number;
-
-  constructor() {
-    this.messages = [];
-    this.currentId = 1;
-  }
-
+export class DatabaseStorage implements IStorage {
   async getMessages(): Promise<Message[]> {
-    return this.messages;
+    return await db.select().from(messages);
   }
 
   async createMessage(insertMessage: InsertMessage): Promise<Message> {
-    const message: Message = {
-      ...insertMessage,
-      id: this.currentId++,
-      timestamp: new Date(),
-    };
-    this.messages.push(message);
+    const [message] = await db
+      .insert(messages)
+      .values(insertMessage)
+      .returning();
     return message;
   }
 
   async createMessages(insertMessages: InsertMessage[]): Promise<Message[]> {
-    const messages = insertMessages.map((msg) => ({
-      ...msg,
-      id: this.currentId++,
-      timestamp: new Date(),
-    }));
-    this.messages.push(...messages);
-    return messages;
+    const insertedMessages = await db
+      .insert(messages)
+      .values(insertMessages)
+      .returning();
+    return insertedMessages;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
