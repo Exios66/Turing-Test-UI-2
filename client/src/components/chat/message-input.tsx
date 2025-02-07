@@ -12,9 +12,10 @@ import { queryClient } from "@/lib/queryClient";
 interface MessageInputProps {
   sender: string;
   avatar: string;
+  conversationId?: number;
 }
 
-export function MessageInput({ sender, avatar }: MessageInputProps) {
+export function MessageInput({ sender, avatar, conversationId }: MessageInputProps) {
   const form = useForm({
     resolver: zodResolver(insertMessageSchema),
     defaultValues: {
@@ -26,10 +27,13 @@ export function MessageInput({ sender, avatar }: MessageInputProps) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: async (values: { content: string; sender: string; avatar: string }) => {
-      await apiRequest("POST", "/api/messages", values);
+      await apiRequest("POST", "/api/messages", {
+        ...values,
+        conversationId,
+      });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/messages", conversationId] });
       form.reset();
     },
   });
