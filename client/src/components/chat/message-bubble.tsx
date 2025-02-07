@@ -7,9 +7,16 @@ import { useTheme } from "@/hooks/use-theme";
 interface MessageBubbleProps {
   message: Message;
   isCurrentUser: boolean;
+  isFirstInGroup: boolean;
+  isLastInGroup: boolean;
 }
 
-export function MessageBubble({ message, isCurrentUser }: MessageBubbleProps) {
+export function MessageBubble({ 
+  message, 
+  isCurrentUser,
+  isFirstInGroup,
+  isLastInGroup 
+}: MessageBubbleProps) {
   const { currentTheme } = useTheme();
   const bubbleStyle = {
     modern: "rounded-2xl px-4 py-2",
@@ -22,13 +29,18 @@ export function MessageBubble({ message, isCurrentUser }: MessageBubbleProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "flex items-end gap-2 mb-4",
-        isCurrentUser ? "flex-row-reverse" : "flex-row"
+        "flex items-end gap-2",
+        isCurrentUser ? "flex-row-reverse" : "flex-row",
+        !isLastInGroup && "mb-1",
+        isLastInGroup && "mb-4"
       )}
     >
-      <Avatar className="w-8 h-8">
-        <AvatarImage src={message.avatar} alt={message.sender} />
-      </Avatar>
+      {isFirstInGroup && (
+        <Avatar className="w-8 h-8">
+          <AvatarImage src={message.avatar} alt={message.sender} />
+        </Avatar>
+      )}
+      {!isFirstInGroup && <div className="w-8" />}
       <div
         style={{
           backgroundColor: isCurrentUser
@@ -41,10 +53,14 @@ export function MessageBubble({ message, isCurrentUser }: MessageBubbleProps) {
           bubbleStyle,
           isCurrentUser
             ? "text-white rounded-br-sm"
-            : "text-black rounded-bl-sm"
+            : "text-black rounded-bl-sm",
+          !isFirstInGroup && isCurrentUser && "mr-12",
+          !isFirstInGroup && !isCurrentUser && "ml-12"
         )}
       >
-        <div className="text-sm font-medium mb-1">{message.sender}</div>
+        {isFirstInGroup && (
+          <div className="text-sm font-medium mb-1">{message.sender}</div>
+        )}
         <div className="break-words">{message.content}</div>
       </div>
     </motion.div>
