@@ -5,20 +5,101 @@ import { useEffect, useRef, useState } from "react";
 import { Input } from "../ui/input";
 import { UserProfile } from "./user-profile";
 import { Skeleton } from "@/components/ui/skeleton";
+import { queryClient } from "@/lib/queryClient";
 
 interface ChatContainerProps {
   messages: Message[];
   currentUser?: string;
   isLoading?: boolean;
+  currentConversation?: string; // Added currentConversation prop
 }
 
-export function ChatContainer({ messages, currentUser, isLoading }: ChatContainerProps) {
+export function ChatContainer({ messages, currentUser, isLoading, currentConversation }: ChatContainerProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectAttemptRef = useRef(0);
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
 
-  const filteredMessages = messages.filter(message => 
+  useEffect(() => {
+    // Setup WebSocket connection
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+    function connect() {
+      const socket = new WebSocket(wsUrl);
+
+      socket.onopen = () => {
+        console.log('WebSocket connected');
+        reconnectAttemptRef.current = 0;
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+
+          // Handle connection status messages
+          if (data.type === 'connection') {
+            console.log('Connection status:', data.status);
+            return;
+          }
+
+          // Handle error messages
+          if (data.error) {
+            console.error('Server reported error:', data.error);
+            return;
+          }
+
+          // Handle chat messages
+          const message = data as Message;
+          queryClient.setQueryData<Message[]>(['/api/messages', currentConversation], (oldMessages = []) => {
+            // Avoid duplicate messages
+            if (oldMessages.some(m => m.id === message.id)) {
+              return oldMessages;
+            }
+            return [...oldMessages, message];
+          });
+        } catch (error) {
+          console.error('WebSocket message processing error:', error);
+        }
+      };
+
+      socket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+
+      socket.onclose = (event) => {
+        console.log(`WebSocket disconnected with code ${event.code}:`, event.reason);
+
+        // Implement exponential backoff for reconnection
+        const backoffDelay = Math.min(1000 * Math.pow(2, reconnectAttemptRef.current), 30000);
+        reconnectAttemptRef.current++;
+
+        // Only attempt reconnection if the page is visible and we haven't exceeded max attempts
+        const maxReconnectAttempts = 5;
+        if (document.visibilityState === 'visible' && reconnectAttemptRef.current <= maxReconnectAttempts) {
+          console.log(`Attempting reconnection in ${backoffDelay}ms (attempt ${reconnectAttemptRef.current})`);
+          setTimeout(connect, backoffDelay);
+        } else {
+          console.log('Max reconnection attempts reached or page not visible');
+        }
+      };
+
+      wsRef.current = socket;
+    }
+
+    connect();
+
+    // Cleanup on unmount
+    return () => {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.close(1000, 'Component unmounting');
+      }
+    };
+  }, [currentConversation]); // Add currentConversation as dependency to reconnect when conversation changes
+
+  const filteredMessages = messages.filter(message =>
     message.content.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -73,12 +154,12 @@ export function ChatContainer({ messages, currentUser, isLoading }: ChatContaine
       <div className="p-2 border-b">
         {currentUser && (
           <UserProfile
-            id={1} // TODO: Get actual user ID
+            id={1}
             username={currentUser}
             avatar=""
           />
         )}
-        <button 
+        <button
           onClick={() => setShowSearch(!showSearch)}
           className="p-2 hover:bg-muted rounded-md text-sm"
         >
@@ -86,11 +167,11 @@ export function ChatContainer({ messages, currentUser, isLoading }: ChatContaine
         </button>
         {showSearch && (
           <div className="mt-2">
-            <Input 
-              placeholder="Search messages..." 
-              value={searchQuery} 
-              onChange={(e) => setSearchQuery(e.target.value)} 
-              className="max-w-md" 
+            <Input
+              placeholder="Search messages..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="max-w-md"
             />
           </div>
         )}
