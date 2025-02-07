@@ -2,6 +2,7 @@ import { Message } from "@shared/schema";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/hooks/use-theme";
 
 interface MessageBubbleProps {
   message: Message;
@@ -9,6 +10,13 @@ interface MessageBubbleProps {
 }
 
 export function MessageBubble({ message, isCurrentUser }: MessageBubbleProps) {
+  const { currentTheme } = useTheme();
+  const bubbleStyle = {
+    modern: "rounded-2xl px-4 py-2",
+    classic: "rounded-lg px-3 py-2",
+    minimal: "rounded px-2 py-1",
+  }[currentTheme.chat.bubbleStyle];
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -22,11 +30,18 @@ export function MessageBubble({ message, isCurrentUser }: MessageBubbleProps) {
         <AvatarImage src={message.avatar} alt={message.sender} />
       </Avatar>
       <div
+        style={{
+          backgroundColor: isCurrentUser
+            ? currentTheme.chat.userBubbleColor
+            : currentTheme.chat.otherBubbleColor,
+          fontFamily: "var(--chat-font-family)",
+        }}
         className={cn(
-          "max-w-[70%] rounded-2xl px-4 py-2",
+          "max-w-[70%]",
+          bubbleStyle,
           isCurrentUser
-            ? "bg-[#34C759] text-white rounded-br-sm"
-            : "bg-[#F2F2F7] text-black rounded-bl-sm"
+            ? "text-white rounded-br-sm"
+            : "text-black rounded-bl-sm"
         )}
       >
         <div className="text-sm font-medium mb-1">{message.sender}</div>
