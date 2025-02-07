@@ -1,103 +1,186 @@
-import { messages, profiles, conversations, type Message, type InsertMessage, type Profile, type InsertProfile, type Conversation, type InsertConversation } from "@shared/schema";
-import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { type Message, type Profile, type Conversation } from "@shared/schema";
+import { log } from "./vite";
 
-export interface IStorage {
-  // Message operations
-  getMessages(conversationId?: number): Promise<Message[]>;
-  createMessage(message: InsertMessage & { conversationId?: number, profileId?: number }): Promise<Message>;
-  createMessages(messages: (InsertMessage & { conversationId?: number, profileId?: number })[]): Promise<Message[]>;
-  clearMessages(conversationId: number): Promise<void>;
+class Storage {
+  private messages: Message[] = [];
+  private profiles: Profile[] = [];
+  private conversations: Conversation[] = [];
+  private nextId = 1;
 
-  // Profile operations
-  getProfiles(): Promise<Profile[]>;
-  createProfile(profile: InsertProfile): Promise<Profile>;
-  updateProfile(id: number, profile: Partial<InsertProfile>): Promise<Profile>;
-
-  // Conversation operations
-  getConversations(): Promise<Conversation[]>;
-  createConversation(conversation: InsertConversation): Promise<Conversation>;
-  updateConversation(id: number, conversation: Partial<InsertConversation>): Promise<Conversation>;
-}
-
-export class DatabaseStorage implements IStorage {
-  // Message operations
-  async getMessages(conversationId?: number): Promise<Message[]> {
-    if (conversationId) {
-      return await db
-        .select()
-        .from(messages)
-        .where(eq(messages.conversationId, conversationId))
-        .orderBy(messages.timestamp);
+  // Profile methods with error handling
+  async getProfiles(): Promise<Profile[]> {
+    try {
+      log("Fetching all profiles");
+      return this.profiles;
+    } catch (error) {
+      log(`Error fetching profiles: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error("Failed to fetch profiles");
     }
-    return await db.select().from(messages).orderBy(messages.timestamp);
   }
 
-  async createMessage(message: InsertMessage & { conversationId?: number, profileId?: number }): Promise<Message> {
-    const [createdMessage] = await db
-      .insert(messages)
-      .values(message)
-      .returning();
-    return createdMessage;
+  async getProfile(id: number): Promise<Profile | undefined> {
+    try {
+      log(`Fetching profile with id: ${id}`);
+      return this.profiles.find((p) => p.id === id);
+    } catch (error) {
+      log(`Error fetching profile ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(`Failed to fetch profile ${id}`);
+    }
   }
 
-  async createMessages(insertMessages: (InsertMessage & { conversationId?: number, profileId?: number })[]): Promise<Message[]> {
-    const createdMessages = await db
-      .insert(messages)
-      .values(insertMessages)
-      .returning();
-    return createdMessages;
+  async createProfile(profile: Omit<Profile, "id">): Promise<Profile> {
+    try {
+      if (!profile.username) {
+        throw new Error("Username is required");
+      }
+
+      const existingProfile = this.profiles.find(p => p.username === profile.username);
+      if (existingProfile) {
+        throw new Error("Username already exists");
+      }
+
+      const newProfile = { 
+        ...profile, 
+        id: this.nextId++,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      this.profiles.push(newProfile);
+      log(`Created new profile with id: ${newProfile.id} and username: ${newProfile.username}`);
+      return newProfile;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      log(`Error creating profile: ${errorMessage}`, "error");
+      throw new Error(`Failed to create profile: ${errorMessage}`);
+    }
+  }
+
+  async updateProfile(id: number, update: Partial<Profile>): Promise<Profile> {
+    try {
+      const index = this.profiles.findIndex((p) => p.id === id);
+      if (index === -1) {
+        const error = `Profile ${id} not found`;
+        log(error);
+        throw new Error(error);
+      }
+
+      this.profiles[index] = { ...this.profiles[index], ...update };
+      log(`Updated profile ${id}`);
+      return this.profiles[index];
+    } catch (error) {
+      log(`Error updating profile ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(`Failed to update profile ${id}`);
+    }
+  }
+
+  async deleteProfile(id: number): Promise<void> {
+    try {
+      const index = this.profiles.findIndex((p) => p.id === id);
+      if (index === -1) {
+        const error = `Profile ${id} not found`;
+        log(error);
+        throw new Error(error);
+      }
+
+      this.profiles.splice(index, 1);
+      log(`Deleted profile ${id}`);
+    } catch (error) {
+      log(`Error deleting profile ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(`Failed to delete profile ${id}`);
+    }
+  }
+
+  // Message methods with error handling
+  async getMessages(conversationId?: number): Promise<Message[]> {
+    try {
+      log(`Fetching messages${conversationId ? ` for conversation ${conversationId}` : ''}`);
+      return conversationId 
+        ? this.messages.filter((m) => m.conversationId === conversationId)
+        : this.messages;
+    } catch (error) {
+      log(`Error fetching messages: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error("Failed to fetch messages");
+    }
+  }
+
+  async createMessage(message: Omit<Message, "id">): Promise<Message> {
+    try {
+      const newMessage = { ...message, id: this.nextId++ };
+      this.messages.push(newMessage);
+      log(`Created new message with id: ${newMessage.id}`);
+      return newMessage;
+    } catch (error) {
+      log(`Error creating message: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error("Failed to create message");
+    }
+  }
+
+  async createMessages(messages: Omit<Message, "id">[]): Promise<Message[]> {
+    try {
+      const newMessages = messages.map((message) => ({
+        ...message,
+        id: this.nextId++,
+      }));
+      this.messages.push(...newMessages);
+      log(`Created ${newMessages.length} new messages`);
+      return newMessages;
+    } catch (error) {
+      log(`Error creating multiple messages: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error("Failed to create messages");
+    }
   }
 
   async clearMessages(conversationId: number): Promise<void> {
-    await db
-      .delete(messages)
-      .where(eq(messages.conversationId, conversationId));
+    try {
+      this.messages = this.messages.filter((m) => m.conversationId !== conversationId);
+      log(`Cleared messages for conversation ${conversationId}`);
+    } catch (error) {
+      log(`Error clearing messages: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error("Failed to clear messages");
+    }
   }
 
-  // Profile operations
-  async getProfiles(): Promise<Profile[]> {
-    return await db.select().from(profiles);
-  }
-
-  async createProfile(profile: InsertProfile): Promise<Profile> {
-    const [createdProfile] = await db
-      .insert(profiles)
-      .values(profile)
-      .returning();
-    return createdProfile;
-  }
-
-  async updateProfile(id: number, profile: Partial<InsertProfile>): Promise<Profile> {
-    const [updatedProfile] = await db
-      .update(profiles)
-      .set(profile)
-      .where(eq(profiles.id, id))
-      .returning();
-    return updatedProfile;
-  }
-
-  // Conversation operations
+  // Conversation methods with error handling
   async getConversations(): Promise<Conversation[]> {
-    return await db.select().from(conversations);
+    try {
+      log("Fetching all conversations");
+      return this.conversations;
+    } catch (error) {
+      log(`Error fetching conversations: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error("Failed to fetch conversations");
+    }
   }
 
-  async createConversation(conversation: InsertConversation): Promise<Conversation> {
-    const [createdConversation] = await db
-      .insert(conversations)
-      .values(conversation)
-      .returning();
-    return createdConversation;
+  async createConversation(conversation: Omit<Conversation, "id">): Promise<Conversation> {
+    try {
+      const newConversation = { ...conversation, id: this.nextId++ };
+      this.conversations.push(newConversation);
+      log(`Created new conversation with id: ${newConversation.id}`);
+      return newConversation;
+    } catch (error) {
+      log(`Error creating conversation: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error("Failed to create conversation");
+    }
   }
 
-  async updateConversation(id: number, conversation: Partial<InsertConversation>): Promise<Conversation> {
-    const [updatedConversation] = await db
-      .update(conversations)
-      .set(conversation)
-      .where(eq(conversations.id, id))
-      .returning();
-    return updatedConversation;
+  async updateConversation(id: number, update: Partial<Conversation>): Promise<Conversation> {
+    try {
+      const index = this.conversations.findIndex((c) => c.id === id);
+      if (index === -1) {
+        const error = `Conversation ${id} not found`;
+        log(error);
+        throw new Error(error);
+      }
+
+      this.conversations[index] = { ...this.conversations[index], ...update };
+      log(`Updated conversation ${id}`);
+      return this.conversations[index];
+    } catch (error) {
+      log(`Error updating conversation ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(`Failed to update conversation ${id}`);
+    }
   }
 }
 
-export const storage = new DatabaseStorage();
+export const storage = new Storage();

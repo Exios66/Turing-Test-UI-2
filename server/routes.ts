@@ -1,7 +1,9 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer } from "http";
 import { storage } from "./storage";
 import { insertMessageSchema, insertProfileSchema, insertConversationSchema } from "@shared/schema";
+import { log } from "./logger"; // Assuming a logger function exists
+
 
 export function registerRoutes(app: Express) {
   // Message routes
@@ -95,6 +97,28 @@ export function registerRoutes(app: Express) {
     }
     const conversation = await storage.updateConversation(id, result.data);
     res.json(conversation);
+  });
+
+  // Error handling middleware
+  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+    const status = err.status || err.statusCode || 500;
+    const message = err.message || "Internal Server Error";
+
+    // Log the error with request details
+    log(`Error ${status} on ${req.method} ${req.path}: ${message}`, "error");
+
+    if (status >= 500) {
+      log(`Stack trace: ${err.stack}`, "error");
+    }
+
+    res.status(status).json({ 
+      error: {
+        message,
+        status,
+        path: req.path,
+        timestamp: new Date().toISOString()
+      }
+    });
   });
 
   return createServer(app);

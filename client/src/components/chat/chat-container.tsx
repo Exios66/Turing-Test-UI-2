@@ -53,6 +53,18 @@ export function ChatContainer({ messages, currentUser }: ChatContainerProps) {
   return (
     <div className="flex flex-col h-full">
       <div className="p-2 border-b">
+        <UserProfile 
+          username={currentUser || ""}
+          avatar=""
+          onUpdate={async (data) => {
+            try {
+              // TODO: Implement profile update API call
+              console.log("Profile update:", data);
+            } catch (error) {
+              console.error("Failed to update profile:", error);
+            }
+          }}
+        />
         <button 
           onClick={toggleSearch}
           className="p-2 hover:bg-muted rounded-md text-sm"
