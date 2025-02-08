@@ -6,6 +6,14 @@ import { insertMessageSchema, insertProfileSchema, insertConversationSchema } fr
 import { log } from "./vite";
 import { checkDatabaseConnection } from "./db";
 
+interface SystemError extends Error {
+  code?: string;
+  errno?: number;
+  syscall?: string;
+  address?: string;
+  port?: number;
+}
+
 const MAX_CLIENTS = 1000;
 const HEARTBEAT_INTERVAL = 30000;
 const CLIENT_TIMEOUT = 120000;
@@ -21,11 +29,21 @@ export function registerRoutes(app: Express) {
   const wss = new WebSocketServer({ 
     server,
     path: '/ws',
-    // Add error handling for the WebSocket server
     verifyClient: (info, callback) => {
-      // Basic validation of the connection
-      const origin = info.origin || info.req.headers.origin;
-      callback(true); // Accept all connections for now
+      try {
+        const origin = info.origin || info.req.headers.origin;
+        // Add basic DOS protection
+        const clientsCount = wss.clients.size;
+        if (clientsCount >= MAX_CLIENTS) {
+          log(`Connection rejected: Maximum clients (${MAX_CLIENTS}) reached`);
+          callback(false, 503, 'Server is at capacity');
+          return;
+        }
+        callback(true);
+      } catch (error) {
+        log(`WebSocket verification error: ${error instanceof Error ? error.message : String(error)}`);
+        callback(false, 400, 'Invalid connection request');
+      }
     }
   });
 
@@ -67,13 +85,6 @@ export function registerRoutes(app: Express) {
     const extWs = ws as ExtendedWebSocket;
     extWs.isAlive = true;
     extWs.lastMessageTime = Date.now();
-
-    // Check maximum connections
-    if (clients.size >= MAX_CLIENTS) {
-      log(`Connection rejected: Maximum clients (${MAX_CLIENTS}) reached`);
-      extWs.close(1013, 'Maximum connections reached');
-      return;
-    }
 
     const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     log(`WebSocket client connected from ${clientIp}`);
@@ -379,7 +390,7 @@ export function registerRoutes(app: Express) {
     });
   });
 
-  wss.on('error', (error) => {
+  wss.on('error', (error: SystemError) => {
     log(`WebSocket server error: ${error.message}`);
     if (error.code === 'EADDRINUSE') {
       log('Port is already in use. Please check if another instance is running.');
