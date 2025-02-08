@@ -17,11 +17,38 @@ interface SystemError extends Error {
 const MAX_CLIENTS = 1000;
 const HEARTBEAT_INTERVAL = 30000;
 const CLIENT_TIMEOUT = 120000;
+const MAX_MESSAGE_SIZE = 1024 * 1024; // 1MB limit for messages
 
 interface ExtendedWebSocket extends WebSocket {
   isAlive: boolean;
   userId?: string;
   lastMessageTime: number;
+}
+
+function validateJsonMessage(data: string): { isValid: boolean; error?: string } {
+  try {
+    if (data.length > MAX_MESSAGE_SIZE) {
+      return { isValid: false, error: 'Message exceeds size limit' };
+    }
+
+    const parsed = JSON.parse(data);
+
+    // Validate message structure
+    if (!parsed || typeof parsed !== 'object') {
+      return { isValid: false, error: 'Invalid message format' };
+    }
+
+    // Check for required fields based on message type
+    if (parsed.type === 'message') {
+      if (!parsed.content || typeof parsed.content !== 'string') {
+        return { isValid: false, error: 'Invalid message content' };
+      }
+    }
+
+    return { isValid: true };
+  } catch (error) {
+    return { isValid: false, error: 'Invalid JSON format' };
+  }
 }
 
 export function registerRoutes(app: Express) {
@@ -95,13 +122,13 @@ export function registerRoutes(app: Express) {
 
     extWs.on('message', (data) => {
       try {
+        const validation = validateJsonMessage(data.toString());
+        if (!validation.isValid) {
+          throw new Error(validation.error);
+        }
+
         const message = JSON.parse(data.toString());
         extWs.lastMessageTime = Date.now();
-
-        // Validate message structure
-        if (!message || typeof message !== 'object') {
-          throw new Error('Invalid message format');
-        }
 
         log(`Received message from ${clientIp}: ${JSON.stringify(message).slice(0, 100)}...`);
 

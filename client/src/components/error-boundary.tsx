@@ -28,12 +28,14 @@ export class ErrorBoundary extends React.Component<Props, State> {
     console.error('Error caught by boundary:', error, errorInfo);
 
     // Log the error to your error tracking service here
-    // You might want to send this to your server or a service like Sentry
     const errorDetails = {
       message: error.message,
       stack: error.stack,
       componentStack: errorInfo.componentStack,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      // Add additional context for WebSocket related errors
+      isWebSocketError: error.message.includes('WebSocket'),
+      connectionState: (window as any).lastKnownWebSocketState
     };
 
     console.error('Error details:', errorDetails);
@@ -41,6 +43,10 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   private handleReset = () => {
     this.setState({ hasError: false, error: undefined, errorInfo: undefined });
+    // Attempt to reconnect WebSocket if this was a WebSocket error
+    if (this.state.error?.message.includes('WebSocket')) {
+      window.dispatchEvent(new CustomEvent('websocket-reconnect-request'));
+    }
   };
 
   render() {
