@@ -48,11 +48,11 @@ app.use(express.json({
         JSON.parse(buf.toString(encoding));
       }
     } catch (e) {
-      res.status(400).json({ 
-        error: { 
+      res.status(400).json({
+        error: {
           message: "Invalid JSON payload",
           details: e instanceof Error ? e.message : "Parsing error"
-        } 
+        }
       });
       throw new Error('Invalid JSON');
     }
@@ -152,34 +152,6 @@ async function startServer(initialPort: number, maxAttempts: number = 10) {
     const port = initialPort + attempt;
     try {
       const server = registerRoutes(app);
-
-      // Global error handler
-      app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
-        const status = err.status || err.statusCode || 500;
-        const message = err.message || "Internal Server Error";
-        const requestId = res.getHeader('X-Request-ID');
-
-        // Enhanced error classification
-        const errorResponse = {
-          error: {
-            message,
-            status,
-            path: req.path,
-            requestId,
-            timestamp: new Date().toISOString(),
-            type: err.type || 'UnknownError',
-            code: err.code,
-            details: process.env.NODE_ENV === 'development' ? err.stack : undefined
-          }
-        };
-
-        log(`ERROR [${requestId}] [${status}] ${req.method} ${req.path}: ${message}`);
-        if (err.stack) {
-          log(`Stack trace for ${requestId}: ${err.stack}`);
-        }
-
-        res.status(status).json(errorResponse);
-      });
 
       if (app.get("env") === "development") {
         await setupVite(app, server);

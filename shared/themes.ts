@@ -23,6 +23,9 @@ export const themeSchema = z.object({
     bubbleHoverEffect: z.boolean().optional(),
     containerClassName: z.string().optional(),
     scrollAreaClassName: z.string().optional(),
+    inputClassName: z.string().optional(),
+    messageClassName: z.string().optional(),
+    avatarClassName: z.string().optional(),
   }),
 });
 
@@ -50,8 +53,12 @@ export const defaultThemes: Theme[] = [
       fontFamily: "system-ui, -apple-system, sans-serif",
       bubbleShadow: true,
       bubbleHoverEffect: true,
-      containerClassName: "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
-      scrollAreaClassName: "bg-background/80"
+      containerClassName:
+        "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
+      scrollAreaClassName: "bg-background/80",
+      inputClassName: "bg-background/90 border-muted",
+      messageClassName: "hover:bg-muted/50",
+      avatarClassName: "ring-2 ring-background",
     },
   },
   {
@@ -75,8 +82,12 @@ export const defaultThemes: Theme[] = [
       fontFamily: "system-ui, -apple-system, sans-serif",
       bubbleShadow: true,
       bubbleHoverEffect: true,
-      containerClassName: "bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/60",
-      scrollAreaClassName: "bg-background/80"
+      containerClassName:
+        "bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/60",
+      scrollAreaClassName: "bg-background/80",
+      inputClassName: "bg-background/90 border-muted",
+      messageClassName: "hover:bg-muted/50",
+      avatarClassName: "ring-2 ring-background",
     },
   },
   {
@@ -101,7 +112,10 @@ export const defaultThemes: Theme[] = [
       bubbleShadow: false,
       bubbleHoverEffect: false,
       containerClassName: "bg-background",
-      scrollAreaClassName: "bg-background"
+      scrollAreaClassName: "bg-background",
+      inputClassName: "bg-background border-input",
+      messageClassName: "",
+      avatarClassName: "ring-1 ring-border",
     },
   },
   {
@@ -126,7 +140,10 @@ export const defaultThemes: Theme[] = [
       bubbleShadow: false,
       bubbleHoverEffect: false,
       containerClassName: "bg-background",
-      scrollAreaClassName: "bg-background"
+      scrollAreaClassName: "bg-background",
+      inputClassName: "bg-background border-input",
+      messageClassName: "",
+      avatarClassName: "ring-1 ring-border",
     },
   },
 ];

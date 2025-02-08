@@ -9,6 +9,7 @@ import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ChatContainerProps {
   messages: Message[];
@@ -16,6 +17,8 @@ interface ChatContainerProps {
   isLoading?: boolean;
   currentConversation?: string;
 }
+
+const CURRENT_USER_AVATAR = "";
 
 export function ChatContainer({ messages, currentUser, isLoading, currentConversation }: ChatContainerProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -27,9 +30,9 @@ export function ChatContainer({ messages, currentUser, isLoading, currentConvers
   const [isConnected, setIsConnected] = useState(false);
   const { toast } = useToast();
   const { currentTheme } = useTheme();
+  const { isMobile, safeAreaInsets, isLandscape } = useIsMobile();
 
   useEffect(() => {
-    // Setup WebSocket connection
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws`;
     let heartbeatInterval: NodeJS.Timeout;
@@ -46,25 +49,22 @@ export function ChatContainer({ messages, currentUser, isLoading, currentConvers
           duration: 2000
         });
 
-        // Start heartbeat
         heartbeatInterval = setInterval(() => {
           if (socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ type: 'ping' }));
           }
-        }, 25000); // Every 25 seconds
+        }, 25000);
       };
 
       socket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
 
-          // Handle connection status messages
           if (data.type === 'connection') {
             console.log('Connection status:', data.status);
             return;
           }
 
-          // Handle error messages
           if (data.error) {
             console.error('Server reported error:', data.error);
             toast({
@@ -75,7 +75,6 @@ export function ChatContainer({ messages, currentUser, isLoading, currentConvers
             return;
           }
 
-          // Handle chat messages
           const message = data as Message;
           queryClient.setQueryData<Message[]>(['/api/messages', currentConversation], (oldMessages = []) => {
             if (oldMessages.some(m => m.id === message.id)) {
@@ -103,11 +102,9 @@ export function ChatContainer({ messages, currentUser, isLoading, currentConvers
         setIsConnected(false);
         clearInterval(heartbeatInterval);
 
-        // Implement exponential backoff for reconnection
         const backoffDelay = Math.min(1000 * Math.pow(2, reconnectAttemptRef.current), 30000);
         reconnectAttemptRef.current++;
 
-        // Only attempt reconnection if the page is visible and we haven't exceeded max attempts
         const maxReconnectAttempts = 5;
         if (document.visibilityState === 'visible' && reconnectAttemptRef.current <= maxReconnectAttempts) {
           console.log(`Attempting reconnection in ${backoffDelay}ms (attempt ${reconnectAttemptRef.current})`);
@@ -135,7 +132,6 @@ export function ChatContainer({ messages, currentUser, isLoading, currentConvers
 
     connect();
 
-    // Cleanup on unmount
     return () => {
       clearInterval(heartbeatInterval);
       if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -193,17 +189,34 @@ export function ChatContainer({ messages, currentUser, isLoading, currentConvers
     );
   }
 
+  const containerStyle = {
+    backgroundColor: currentTheme.chat?.background || 'transparent',
+    color: currentTheme.chat?.textColor || 'inherit',
+    paddingTop: isMobile ? `max(${safeAreaInsets.top}, 1rem)` : undefined,
+    paddingBottom: isMobile ? `max(${safeAreaInsets.bottom}, 0.5rem)` : undefined,
+    height: isMobile ? (isLandscape ? '100%' : '100dvh') : '100%',
+  };
+
+  const messageClassName = currentTheme.chat?.messageClassName;
+
   return (
-    <div className={cn(
-      "flex flex-col h-full bg-background",
-      currentTheme.chat.containerClassName
-    )}>
-      <div className="p-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <div
+      className={cn(
+        "flex flex-col transition-colors",
+        currentTheme.chat?.containerClassName,
+        isMobile && "min-h-screen overflow-hidden"
+      )}
+      style={containerStyle}
+    >
+      <div className={cn(
+        "p-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-20",
+        isMobile && "safe-area-x"
+      )}>
         {currentUser && (
           <UserProfile
             id={1}
             name={currentUser}
-            avatar=""
+            avatar={CURRENT_USER_AVATAR}
             onUpdate={() => {
               queryClient.invalidateQueries({ queryKey: ['/api/profiles'] });
             }}
@@ -221,21 +234,35 @@ export function ChatContainer({ messages, currentUser, isLoading, currentConvers
               placeholder="Search messages..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="max-w-md"
+              className={cn(
+                "max-w-md",
+                currentTheme.chat?.inputClassName
+              )}
+              style={{
+                backgroundColor: currentTheme.chat?.inputBackground,
+                borderColor: currentTheme.chat?.inputBorder,
+              }}
             />
           </div>
         )}
       </div>
-      <ScrollArea 
+      <ScrollArea
         className={cn(
-          "flex-1 p-4",
-          currentTheme.chat.scrollAreaClassName
-        )} 
+          "flex-1 p-4 relative",
+          currentTheme.chat?.scrollAreaClassName,
+          isMobile && "safe-area-x"
+        )}
         onScroll={handleScroll}
       >
         <div className="flex-1 overflow-y-auto p-4">
           {groupedMessages.map((group, groupIndex) => (
-            <div key={groupIndex} className="mb-6">
+            <div
+              key={groupIndex}
+              className={cn(
+                "mb-6",
+                messageClassName
+              )}
+            >
               {group.map((message, messageIndex) => (
                 <MessageBubble
                   key={message.id}

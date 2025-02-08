@@ -1,5 +1,5 @@
 import { Message } from "@shared/schema";
-import { Avatar, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
@@ -27,7 +27,32 @@ export function MessageBubble({
     modern: "rounded-2xl px-4 py-2.5",
     classic: "rounded-lg px-3.5 py-2",
     minimal: "rounded px-3 py-1.5",
-  }[currentTheme.chat.bubbleStyle || 'modern'];
+  }[currentTheme.chat?.bubbleStyle || 'modern'];
+
+  // Font family based on theme settings
+  const getFontFamily = () => {
+    const fontStyle = currentTheme.chat?.fontStyle;
+    switch(fontStyle) {
+      case 'default':
+        return 'var(--font-sans)';
+      case 'rounded':
+        return 'var(--font-rounded)';
+      case 'monospace':
+        return 'var(--font-mono)';
+      default:
+        return 'var(--font-sans)';
+    }
+  };
+
+  const bubbleColors = {
+    backgroundColor: isCurrentUser
+      ? currentTheme.chat?.userBubbleColor || '#007AFF'
+      : currentTheme.chat?.otherBubbleColor || '#E9E9EB',
+    color: isCurrentUser
+      ? '#FFFFFF'
+      : currentTheme.chat?.textColor || '#000000',
+    fontFamily: getFontFamily(),
+  };
 
   return (
     <motion.div
@@ -44,10 +69,14 @@ export function MessageBubble({
       {isFirstInGroup && (
         <>
           <Avatar 
-            className="w-8 h-8 cursor-pointer transition-transform hover:scale-105" 
+            className={cn(
+              "w-8 h-8 cursor-pointer transition-transform hover:scale-105",
+              currentTheme.chat?.avatarClassName
+            )}
             onClick={() => setShowProfile(true)}
           >
             <AvatarImage src={message.avatar} alt={message.sender} />
+            <AvatarFallback>{message.sender[0]?.toUpperCase()}</AvatarFallback>
           </Avatar>
           {showProfile && (
             <UserProfile
@@ -61,22 +90,17 @@ export function MessageBubble({
       )}
       {!isFirstInGroup && <div className="w-8" />}
       <div
-        style={{
-          backgroundColor: isCurrentUser
-            ? currentTheme.chat.userBubbleColor
-            : currentTheme.chat.otherBubbleColor,
-          fontFamily: currentTheme.chat.fontFamily || "var(--font-sans)",
-          boxShadow: currentTheme.chat.bubbleShadow ? "0 1px 2px rgba(0,0,0,0.1)" : "none",
-        }}
+        style={bubbleColors}
         className={cn(
-          "max-w-[70%] transition-colors",
+          "max-w-[70%] transition-colors break-words",
           bubbleStyle,
           isCurrentUser
-            ? "text-white dark:text-white rounded-br-sm"
-            : "text-foreground dark:text-foreground rounded-bl-sm",
+            ? "rounded-br-sm shadow-sm"
+            : "rounded-bl-sm shadow-sm",
           !isFirstInGroup && isCurrentUser && "mr-12",
           !isFirstInGroup && !isCurrentUser && "ml-12",
-          currentTheme.chat.bubbleHoverEffect && "hover:brightness-95"
+          currentTheme.chat?.bubbleHoverEffect && "hover:brightness-95",
+          currentTheme.chat?.bubbleShadow && "shadow-md"
         )}
       >
         {isFirstInGroup && (
