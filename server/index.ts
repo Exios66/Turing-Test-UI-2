@@ -8,16 +8,13 @@ import compression from "compression";
 
 const app = express();
 app.use(compression({
-  // Compress everything above 1kb
   threshold: 1024,
-  // Don't compress responses with this response header
   filter: (req, res) => {
     if (req.headers['x-no-compression']) {
       return false;
     }
     return compression.filter(req, res);
   },
-  // zlib option for compression level
   level: 6
 }));
 app.use(express.json());
@@ -105,47 +102,74 @@ process.on('unhandledRejection', (reason, promise) => {
   log(`Unhandled Rejection at: ${promise}, reason: ${reason}`);
 });
 
-(async () => {
-  try {
-    const server = registerRoutes(app);
+// Function to try different ports if the default one is in use
+async function startServer(initialPort: number, maxAttempts: number = 10) {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const port = initialPort + attempt;
+    try {
+      const server = registerRoutes(app);
 
-    // Global error handler
-    app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
-      const status = err.status || err.statusCode || 500;
-      const message = err.message || "Internal Server Error";
-      const requestId = res.getHeader('X-Request-ID');
+      // Global error handler
+      app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+        const status = err.status || err.statusCode || 500;
+        const message = err.message || "Internal Server Error";
+        const requestId = res.getHeader('X-Request-ID');
 
-      log(`ERROR [${requestId}] [${status}] ${req.method} ${req.path}: ${message}`);
-      if (err.stack) {
-        log(`Stack trace for ${requestId}: ${err.stack}`);
+        log(`ERROR [${requestId}] [${status}] ${req.method} ${req.path}: ${message}`);
+        if (err.stack) {
+          log(`Stack trace for ${requestId}: ${err.stack}`);
+        }
+
+        res.status(status).json({
+          error: {
+            message,
+            status,
+            path: req.path,
+            requestId,
+            timestamp: new Date().toISOString()
+          }
+        });
+      });
+
+      // Setup vite only in development
+      if (app.get("env") === "development") {
+        await setupVite(app, server);
+      } else {
+        serveStatic(app);
       }
 
-      res.status(status).json({
-        error: {
-          message,
-          status,
-          path: req.path,
-          requestId,
-          timestamp: new Date().toISOString()
-        }
+      await new Promise<void>((resolve, reject) => {
+        server.listen(port, '0.0.0.0')
+          .once('listening', () => {
+            log(`Server started successfully on 0.0.0.0:${port}`);
+            console.log(`Ready | Server listening at http://0.0.0.0:${port}`);
+            resolve();
+          })
+          .once('error', (err) => {
+            if (err.code === 'EADDRINUSE') {
+              log(`Port ${port} is in use, trying next port...`);
+              server.close();
+              resolve(); // Continue to next attempt
+            } else {
+              reject(err);
+            }
+          });
       });
-    });
 
-    // Setup vite only in development
-    if (app.get("env") === "development") {
-      await setupVite(app, server);
-    } else {
-      serveStatic(app);
+      return; // Server started successfully
+    } catch (error) {
+      if (attempt === maxAttempts - 1) {
+        // This is the last attempt
+        log(`Failed to start server after ${maxAttempts} attempts: ${error instanceof Error ? error.message : String(error)}`);
+        process.exit(1);
+      }
     }
-
-    const PORT = Number(process.env.PORT) || 5000;
-    server.listen(PORT, '0.0.0.0', () => {
-      log(`Server started successfully on 0.0.0.0:${PORT}`);
-      // Signal that the server is ready - Updated format for better detection
-      console.log(`Ready | Server listening at http://0.0.0.0:${PORT}`);
-    });
-  } catch (error) {
-    log(`Failed to start server: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(1);
   }
-})();
+}
+
+// Start the server
+const PORT = Number(process.env.PORT) || 5000;
+startServer(PORT).catch(error => {
+  log(`Failed to start server: ${error instanceof Error ? error.message : String(error)}`);
+  process.exit(1);
+});

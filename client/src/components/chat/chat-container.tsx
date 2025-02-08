@@ -197,8 +197,12 @@ export function ChatContainer({ messages, currentUser, isLoading, currentConvers
         {currentUser && (
           <UserProfile
             id={1}
-            username={currentUser}
+            name={currentUser}
             avatar=""
+            onUpdate={() => {
+              // Use the correct invalidation query format for TanStack Query v5
+              queryClient.invalidateQueries({ queryKey: ['/api/profiles'] });
+            }}
           />
         )}
         <button

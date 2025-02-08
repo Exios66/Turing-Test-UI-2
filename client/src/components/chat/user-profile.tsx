@@ -5,36 +5,43 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { updateProfile } from '@/lib/api';
 import { z } from 'zod';
+import { type Profile } from '@shared/schema';
 
-const profileSchema = z.object({
-  name: z.string().min(1, "Username is required"),
-  avatar: z.string().url("Invalid avatar URL").optional(),
+const profileUpdateSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  avatar: z.string().url("Invalid avatar URL"),
 });
 
 interface UserProfileProps {
   id: number;
-  username: string;
-  avatar?: string;
+  name: string;
+  avatar: string;
+  onUpdate?: (profile: Profile) => void;
 }
 
-export function UserProfile({ id, username, avatar }: UserProfileProps) {
+export function UserProfile({ id, name, avatar, onUpdate }: UserProfileProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [newUsername, setNewUsername] = useState(username);
-  const [newAvatar, setNewAvatar] = useState(avatar || '');
+  const [newName, setNewName] = useState(name);
+  const [newAvatar, setNewAvatar] = useState(avatar);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
-      const validatedData = profileSchema.parse({
-        name: newUsername,
-        avatar: newAvatar || undefined,
+      const validatedData = profileUpdateSchema.parse({
+        name: newName,
+        avatar: newAvatar,
       });
 
       setIsLoading(true);
-      await updateProfile(id, validatedData);
+      const updatedProfile = await updateProfile(id, validatedData);
       setIsEditing(false);
+
+      if (onUpdate) {
+        onUpdate(updatedProfile);
+      }
+
       toast({
         title: "Profile Updated",
         description: "Your profile has been successfully updated.",
@@ -62,16 +69,16 @@ export function UserProfile({ id, username, avatar }: UserProfileProps) {
   return (
     <div className="flex items-center gap-4 p-2">
       <Avatar>
-        <AvatarImage src={avatar} alt={username} />
-        <AvatarFallback>{username[0]?.toUpperCase()}</AvatarFallback>
+        <AvatarImage src={avatar} alt={name} />
+        <AvatarFallback>{name[0]?.toUpperCase()}</AvatarFallback>
       </Avatar>
 
       {isEditing ? (
         <form onSubmit={handleSubmit} className="flex gap-2">
           <Input
-            value={newUsername}
-            onChange={(e) => setNewUsername(e.target.value)}
-            placeholder="Username"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="Name"
             className="w-32"
             disabled={isLoading}
           />
@@ -90,8 +97,8 @@ export function UserProfile({ id, username, avatar }: UserProfileProps) {
             variant="outline" 
             size="sm" 
             onClick={() => {
-              setNewUsername(username);
-              setNewAvatar(avatar || '');
+              setNewName(name);
+              setNewAvatar(avatar);
               setIsEditing(false);
             }}
             disabled={isLoading}
@@ -101,7 +108,7 @@ export function UserProfile({ id, username, avatar }: UserProfileProps) {
         </form>
       ) : (
         <>
-          <span className="font-medium">{username}</span>
+          <span className="font-medium">{name}</span>
           <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
             Edit Profile
           </Button>

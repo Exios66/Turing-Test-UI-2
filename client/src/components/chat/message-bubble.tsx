@@ -43,16 +43,14 @@ export function MessageBubble({
           <Avatar className="w-8 h-8 cursor-pointer" onClick={() => setShowProfile(true)}>
             <AvatarImage src={message.avatar} alt={message.sender} />
           </Avatar>
-          <UserProfile
-            profile={{
-              id: 0,
-              name: message.sender,
-              avatar: message.avatar,
-              createdAt: new Date().toISOString()
-            }}
-            isOpen={showProfile}
-            onClose={() => setShowProfile(false)}
-          />
+          {showProfile && (
+            <UserProfile
+              id={message.profileId ?? 0}
+              name={message.sender}
+              avatar={message.avatar}
+              onUpdate={() => setShowProfile(false)}
+            />
+          )}
         </>
       )}
       {!isFirstInGroup && <div className="w-8" />}

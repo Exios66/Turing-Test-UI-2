@@ -6,9 +6,9 @@ import { insertMessageSchema, insertProfileSchema, insertConversationSchema } fr
 import { log } from "./vite";
 import { checkDatabaseConnection } from "./db";
 
-const MAX_CLIENTS = 1000; // Maximum number of concurrent WebSocket connections
-const HEARTBEAT_INTERVAL = 30000; // 30 seconds
-const CLIENT_TIMEOUT = 120000; // 2 minutes
+const MAX_CLIENTS = 1000;
+const HEARTBEAT_INTERVAL = 30000;
+const CLIENT_TIMEOUT = 120000;
 
 interface ExtendedWebSocket extends WebSocket {
   isAlive: boolean;
@@ -18,7 +18,16 @@ interface ExtendedWebSocket extends WebSocket {
 
 export function registerRoutes(app: Express) {
   const server = createServer(app);
-  const wss = new WebSocketServer({ server, path: '/ws' });
+  const wss = new WebSocketServer({ 
+    server,
+    path: '/ws',
+    // Add error handling for the WebSocket server
+    verifyClient: (info, callback) => {
+      // Basic validation of the connection
+      const origin = info.origin || info.req.headers.origin;
+      callback(true); // Accept all connections for now
+    }
+  });
 
   // Track connected clients with extended information
   const clients = new Map<ExtendedWebSocket, { connectTime: number }>();
@@ -367,6 +376,22 @@ export function registerRoutes(app: Express) {
         requestId,
         timestamp: new Date().toISOString()
       }
+    });
+  });
+
+  wss.on('error', (error) => {
+    log(`WebSocket server error: ${error.message}`);
+    if (error.code === 'EADDRINUSE') {
+      log('Port is already in use. Please check if another instance is running.');
+    }
+  });
+
+  // Add a graceful shutdown handler
+  process.on('SIGTERM', () => {
+    log('SIGTERM received. Closing WebSocket server...');
+    wss.close(() => {
+      log('WebSocket server closed.');
+      process.exit(0);
     });
   });
 

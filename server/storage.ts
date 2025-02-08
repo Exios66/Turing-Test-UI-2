@@ -1,4 +1,4 @@
-import { type Message, type Profile, type Conversation } from "@shared/schema";
+import { type Message, type Profile, type Conversation, type InsertProfile } from "@shared/schema";
 import { log } from "./vite";
 
 class Storage {
@@ -28,26 +28,25 @@ class Storage {
     }
   }
 
-  async createProfile(profile: Omit<Profile, "id">): Promise<Profile> {
+  async createProfile(profile: InsertProfile): Promise<Profile> {
     try {
-      if (!profile.username) {
-        throw new Error("Username is required");
+      if (!profile.name) {
+        throw new Error("Name is required");
       }
 
-      const existingProfile = this.profiles.find(p => p.username === profile.username);
+      const existingProfile = this.profiles.find(p => p.name === profile.name);
       if (existingProfile) {
-        throw new Error("Username already exists");
+        throw new Error("Profile name already exists");
       }
 
-      const newProfile = { 
+      const newProfile: Profile = { 
         ...profile, 
         id: this.nextId++,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        createdAt: new Date(),
       };
 
       this.profiles.push(newProfile);
-      log(`Created new profile with id: ${newProfile.id} and username: ${newProfile.username}`);
+      log(`Created new profile with id: ${newProfile.id} and name: ${newProfile.name}`);
       return newProfile;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -65,9 +64,16 @@ class Storage {
         throw new Error(error);
       }
 
-      this.profiles[index] = { ...this.profiles[index], ...update };
+      const updatedProfile: Profile = {
+        ...this.profiles[index],
+        ...update,
+        id: this.profiles[index].id,
+        createdAt: this.profiles[index].createdAt
+      };
+
+      this.profiles[index] = updatedProfile;
       log(`Updated profile ${id}`);
-      return this.profiles[index];
+      return updatedProfile;
     } catch (error) {
       log(`Error updating profile ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw new Error(`Failed to update profile ${id}`);
