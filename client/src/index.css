@@ -163,6 +163,20 @@
       top: calc(1rem + var(--safe-area-inset-top));
       left: calc(1rem + var(--safe-area-inset-left));
     }
+
+    /* Improved safe area handling for notched devices */
+    .safe-area-x {
+      padding-left: max(1rem, env(safe-area-inset-left));
+      padding-right: max(1rem, env(safe-area-inset-right));
+    }
+
+    .safe-area-top {
+      padding-top: max(1rem, env(safe-area-inset-top));
+    }
+
+    .safe-area-bottom {
+      padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
   }
 
   /* Safe area adjustments */
@@ -193,5 +207,12 @@
 
   .no-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+}
+
+/* Fix for iOS viewport height issues */
+@supports (-webkit-touch-callout: none) {
+  .h-screen, .min-h-screen {
+    height: -webkit-fill-available;
   }
 }
