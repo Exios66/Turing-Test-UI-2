@@ -1,4 +1,3 @@
-
 import { z } from "zod";
 
 export const themeSchema = z.object({
@@ -19,6 +18,11 @@ export const themeSchema = z.object({
     sidebarBackground: z.string(),
     sidebarText: z.string(),
     accentColor: z.string(),
+    fontFamily: z.string().optional(),
+    bubbleShadow: z.boolean().optional(),
+    bubbleHoverEffect: z.boolean().optional(),
+    containerClassName: z.string().optional(),
+    scrollAreaClassName: z.string().optional(),
   }),
 });
 
@@ -43,6 +47,11 @@ export const defaultThemes: Theme[] = [
       sidebarBackground: "#f8f8f8",
       sidebarText: "#4a4a4a",
       accentColor: "#007AFF",
+      fontFamily: "system-ui, -apple-system, sans-serif",
+      bubbleShadow: true,
+      bubbleHoverEffect: true,
+      containerClassName: "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
+      scrollAreaClassName: "bg-background/80"
     },
   },
   {
@@ -63,6 +72,11 @@ export const defaultThemes: Theme[] = [
       sidebarBackground: "#242424",
       sidebarText: "#e0e0e0",
       accentColor: "#0A84FF",
+      fontFamily: "system-ui, -apple-system, sans-serif",
+      bubbleShadow: true,
+      bubbleHoverEffect: true,
+      containerClassName: "bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/60",
+      scrollAreaClassName: "bg-background/80"
     },
   },
   {
@@ -83,6 +97,11 @@ export const defaultThemes: Theme[] = [
       sidebarBackground: "#f3f4f6",
       sidebarText: "#4b5563",
       accentColor: "#6B7280",
+      fontFamily: "ui-monospace, monospace",
+      bubbleShadow: false,
+      bubbleHoverEffect: false,
+      containerClassName: "bg-background",
+      scrollAreaClassName: "bg-background"
     },
   },
   {
@@ -103,6 +122,11 @@ export const defaultThemes: Theme[] = [
       sidebarBackground: "#111827",
       sidebarText: "#D1D5DB",
       accentColor: "#6B7280",
+      fontFamily: "ui-monospace, monospace",
+      bubbleShadow: false,
+      bubbleHoverEffect: false,
+      containerClassName: "bg-background",
+      scrollAreaClassName: "bg-background"
     },
   },
 ];

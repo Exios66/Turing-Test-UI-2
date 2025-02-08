@@ -7,6 +7,8 @@ import { UserProfile } from "./user-profile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import { useTheme } from "@/hooks/use-theme";
 
 interface ChatContainerProps {
   messages: Message[];
@@ -24,6 +26,7 @@ export function ChatContainer({ messages, currentUser, isLoading, currentConvers
   const [showSearch, setShowSearch] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const { toast } = useToast();
+  const { currentTheme } = useTheme();
 
   useEffect(() => {
     // Setup WebSocket connection
@@ -151,7 +154,6 @@ export function ChatContainer({ messages, currentUser, isLoading, currentConvers
         bottomRef.current.scrollIntoView({ behavior: "smooth" });
       } catch (error) {
         console.error('Error scrolling to bottom:', error);
-        // Fallback to instant scroll if smooth scroll fails
         bottomRef.current.scrollIntoView();
       }
     }
@@ -181,7 +183,7 @@ export function ChatContainer({ messages, currentUser, isLoading, currentConvers
 
   if (isLoading) {
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full bg-background">
         <div className="p-4 space-y-4">
           <Skeleton className="h-12 w-full" />
           <Skeleton className="h-20 w-3/4" />
@@ -192,22 +194,24 @@ export function ChatContainer({ messages, currentUser, isLoading, currentConvers
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="p-2 border-b">
+    <div className={cn(
+      "flex flex-col h-full bg-background",
+      currentTheme.chat.containerClassName
+    )}>
+      <div className="p-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         {currentUser && (
           <UserProfile
             id={1}
             name={currentUser}
             avatar=""
             onUpdate={() => {
-              // Use the correct invalidation query format for TanStack Query v5
               queryClient.invalidateQueries({ queryKey: ['/api/profiles'] });
             }}
           />
         )}
         <button
           onClick={() => setShowSearch(!showSearch)}
-          className="p-2 hover:bg-muted rounded-md text-sm"
+          className="p-2 hover:bg-muted rounded-md text-sm transition-colors"
         >
           {showSearch ? "Hide Search" : "Show Search"}
         </button>
@@ -222,7 +226,13 @@ export function ChatContainer({ messages, currentUser, isLoading, currentConvers
           </div>
         )}
       </div>
-      <ScrollArea className="flex-1 p-4" onScroll={handleScroll}>
+      <ScrollArea 
+        className={cn(
+          "flex-1 p-4",
+          currentTheme.chat.scrollAreaClassName
+        )} 
+        onScroll={handleScroll}
+      >
         <div className="flex-1 overflow-y-auto p-4">
           {groupedMessages.map((group, groupIndex) => (
             <div key={groupIndex} className="mb-6">

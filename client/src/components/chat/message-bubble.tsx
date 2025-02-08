@@ -21,18 +21,21 @@ export function MessageBubble({
 }: MessageBubbleProps) {
   const [showProfile, setShowProfile] = useState(false);
   const { currentTheme } = useTheme();
+
+  // Enhanced bubble styles based on theme
   const bubbleStyle = {
-    modern: "rounded-2xl px-4 py-2",
-    classic: "rounded-lg px-3 py-2",
-    minimal: "rounded px-2 py-1",
-  }[currentTheme.chat.bubbleStyle];
+    modern: "rounded-2xl px-4 py-2.5",
+    classic: "rounded-lg px-3.5 py-2",
+    minimal: "rounded px-3 py-1.5",
+  }[currentTheme.chat.bubbleStyle || 'modern'];
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
       className={cn(
-        "flex items-end gap-2",
+        "flex items-end gap-2.5",
         isCurrentUser ? "flex-row-reverse" : "flex-row",
         !isLastInGroup && "mb-1",
         isLastInGroup && "mb-4"
@@ -40,7 +43,10 @@ export function MessageBubble({
     >
       {isFirstInGroup && (
         <>
-          <Avatar className="w-8 h-8 cursor-pointer" onClick={() => setShowProfile(true)}>
+          <Avatar 
+            className="w-8 h-8 cursor-pointer transition-transform hover:scale-105" 
+            onClick={() => setShowProfile(true)}
+          >
             <AvatarImage src={message.avatar} alt={message.sender} />
           </Avatar>
           {showProfile && (
@@ -59,22 +65,31 @@ export function MessageBubble({
           backgroundColor: isCurrentUser
             ? currentTheme.chat.userBubbleColor
             : currentTheme.chat.otherBubbleColor,
-          fontFamily: "var(--chat-font-family)",
+          fontFamily: currentTheme.chat.fontFamily || "var(--font-sans)",
+          boxShadow: currentTheme.chat.bubbleShadow ? "0 1px 2px rgba(0,0,0,0.1)" : "none",
         }}
         className={cn(
-          "max-w-[70%]",
+          "max-w-[70%] transition-colors",
           bubbleStyle,
           isCurrentUser
-            ? "text-white rounded-br-sm"
-            : "text-black rounded-bl-sm",
+            ? "text-white dark:text-white rounded-br-sm"
+            : "text-foreground dark:text-foreground rounded-bl-sm",
           !isFirstInGroup && isCurrentUser && "mr-12",
-          !isFirstInGroup && !isCurrentUser && "ml-12"
+          !isFirstInGroup && !isCurrentUser && "ml-12",
+          currentTheme.chat.bubbleHoverEffect && "hover:brightness-95"
         )}
       >
         {isFirstInGroup && (
-          <div className="text-sm font-medium mb-1">{message.sender}</div>
+          <div className={cn(
+            "text-sm font-medium mb-1",
+            isCurrentUser ? "text-white/90" : "text-foreground/90"
+          )}>
+            {message.sender}
+          </div>
         )}
-        <div className="break-words">{message.content}</div>
+        <div className="break-words whitespace-pre-wrap">
+          {message.content}
+        </div>
       </div>
     </motion.div>
   );
